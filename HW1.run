@@ -1,0 +1,7 @@
+reset;
+model HW1.mod;
+data HW1.dat;
+
+solve;
+
+printf{i in 0..4*K} "%10.5f %10.5f \n", p[i,0], p[i,1] > "brachi.txt";
