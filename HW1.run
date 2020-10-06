@@ -1,11 +1,16 @@
 reset;
-model HW1.mod;
+model HW1-method1.mod;
+#model HW1-method2.mod;
 data HW1.dat;
 
-#let {i in 0..3} h[i] := 1;
-let h := 1; 
 
-option solver knitro;
-solve;
 
-printf{i in 0..4*K} "%10.5f %10.5f \n", p[i,0], p[i,1] > "HW1.txt";
+for {i in 0..10}{
+	
+	let K := 2^i;
+	let {j in 0..3} h[j] := 4/K;
+	option solver knitro;
+	solve;
+	printf "%10.5f \n", minTime >> "HW1-obj.txt";
+}
+
