@@ -1,9 +1,9 @@
-#let v0[0] := 0;
-#let v0[1] := 0;
-#let a0[0] := 0;
-#let a0[1] := 0;
+let v0[0] := 0;
+let v0[1] := 0;
+let a0[0] := 3;
+let a0[1] := -1;
 
-let K := 40;
+let K := 50;
 
 let {i in 0..1} base0[i] := 0;
 
