@@ -1,16 +1,24 @@
 reset;
 model HW1-method1.mod;
-#model HW1-method2.mod;
 data HW1.dat;
 
+#Solve the minimization problem
+option solver knitro;
+solve;
+
+#Write results in a file
+printf {i in 0..4*K} "%10.5f %10.5f \n", p[i,0],p[i,1] > "HW1-model-1-position.txt";
 
 
-for {i in 0..12}{
-	
-	let K := 2^i;
-	#let {j in 0..3} h[j] := 1;
-	option solver knitro;
-	solve;
-	printf "%10.5f \n", minTime >> "HW1-obj1.txt";
-}
+reset;
+model HW1-method2.mod;
+data HW1.dat;
+
+#Solve the minimization problem
+option solver knitro;
+solve;
+
+#Write results in a file
+printf {i in 0..4*K} "%10.5f %10.5f \n", p[i,0],p[i,1] > "HW1-model-2-position.txt";
+
 
