@@ -5,12 +5,12 @@ data HW1.dat;
 
 
 
-for {i in 0..10}{
+for {i in 0..12}{
 	
 	let K := 2^i;
-	let {j in 0..3} h[j] := 4/K;
+	#let {j in 0..3} h[j] := 1;
 	option solver knitro;
 	solve;
-	printf "%10.5f \n", minTime >> "HW1-obj.txt";
+	printf "%10.5f \n", minTime >> "HW1-obj1.txt";
 }
 
