@@ -1,12 +1,27 @@
 import numpy as np
+import pickle
 
-n = 3
 lam = 1
 mu = 1
-nA = 3
-nB = 4
-a = np.zeros((nA,n))
-b = np.zeros((nB,n))
+
+########
+# Data #
+########
+
+#train_data = np.loadtxt("data/mnist_train.csv",delimiter=",")
+#pickle.dump(train_data[:int(0.1*len(train_data))],open("train_data.p","wb"))
+
+train_data = pickle.load(open("train_data.p", "rb"))
+print(train_data)
+
+n = len(train_data[0])-1
+
+ind_a = np.where(train_data[:,0]==0)[0]
+ind_b = np.where(train_data[:,0]!=0)[0]
+nA = len(ind_a)
+nB = len(ind_b)
+a = train_data[ind_a,1:]
+b = train_data[ind_b,1:]
 
 ############
 # Gradient #
@@ -134,7 +149,4 @@ def f_mu_hessian(h,c,s,t,l):
                        np.zeros((1,nB)),
                        f_mu_l_l(h,l)])
     return np.vstack([h_row,c_row,s_row,t_row,l_row])
-
-print(f_mu_hessian(np.ones(n),1,np.ones(nA),np.ones(nB),1))
-
 
