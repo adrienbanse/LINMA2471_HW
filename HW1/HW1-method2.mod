@@ -1,4 +1,5 @@
 param K;
+param amax;
 param a0{0..1};
 param v0{0..1};
 param base0{0..1};
@@ -6,11 +7,10 @@ param base1{0..1};
 param base2{0..1};
 param base3{0..1};
 
-#var h >= 0;
 var h{0..3} >= 0; 
-var p{0..4*K,0..1}; # initially 0
-var v{0..4*K,0..1}; # initially v0
-var a{0..4*K,0..1}; # initially a0
+var p{0..4*K,0..1}; 
+var v{0..4*K,0..1}; 
+var a{0..4*K,0..1}; 
 
 # objective function
 minimize minTime: K*(sum {i in 0..3} h[i]);
@@ -31,5 +31,5 @@ subject to velocity {k in 0..4*K-1, i in 0..1}: v[k+1,i] = v[k,i] + h[k div K]*a
 subject to position {k in 0..4*K-1, i in 0..1}: p[k+1,i] = p[k,i] + h[k div K]*v[k,i] + 0.5* h[k div K]^2 *a[k,i];
 
 # acceleration upper bound
-subject to notFaster {k in 0..4*K}: a[k,0]^2 + a[k,1]^2 <= 100
+subject to notFaster {k in 0..4*K}: a[k,0]^2 + a[k,1]^2 <= amax^2
 
