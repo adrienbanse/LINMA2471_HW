@@ -29,7 +29,6 @@ b = train_data[ind_b,1:]
 true_labels=np.zeros(nA+nB)
 true_labels[ind_b]=1
 
-
 ############
 # Gradient #
 ############
@@ -42,7 +41,7 @@ def f_mu_h(h,c,s,t,l):
     sumB = 0
     for i in range(nB):
         sumB += b[i]/(-1+np.dot(h,b[i])+c+t[i])
-    return sumA-sumB + 2*h/(l-np.linalg.norm(h)**2)
+    return sumA - sumB + 2*h/(l-np.linalg.norm(h)**2)
 
 # w.r.t. c
 f_mu_c = lambda h,c,s,t : np.sum(1/(-np.ones(nA)-a@h-c*np.ones(nA)+s)) - np.sum(1/(-np.ones(nB)+b@h+c*np.ones(nB)+t))
@@ -97,7 +96,7 @@ def f_mu_s_h(h,c,s):
 def f_mu_t_h(h,c,t):
     mat = np.zeros((nB,n))
     for i in range(nB):
-        mat[i,:] = -b[i]/(-1+np.dot(h,b[i])+c+t[i])**2
+        mat[i,:] = b[i]/(-1+np.dot(h,b[i])+c+t[i])**2
     return mat
 
 # 1x(n) vector
@@ -117,7 +116,7 @@ def f_mu_s_c(h,c,s):
 def f_mu_t_c(h,c,t):
     mat = np.zeros(nB)
     for i in range(nB):
-        mat[i] = -1/(-1+np.dot(h,b[i])+c+t[i])**2
+        mat[i] = 1/(-1+np.dot(h,b[i])+c+t[i])**2
     return np.reshape(mat,(nB,1))
 
 # (nA)x(nA) diagonal matrix
@@ -157,8 +156,12 @@ def f_mu_hessian(h,c,s,t,l):
                        f_mu_l_l(h,l)])
     return np.vstack([h_row,c_row,s_row,t_row,l_row])
 
+#######
+# IPM #
+#######
+
 def initial_point():
-    len = n+1+nA+nB+1
+    len = n+2+nA+nB
     var = np.zeros(len)
     var[n+1:n+1+nA]= nA/(nA+nB)
     var[n+1+nA:n+1+nA+nB] = nB/(nA+nB)
@@ -169,7 +172,7 @@ def n_mu(mu,x):
     hess = f_mu_hessian(x[:n],x[n],x[n+1:n+1+nA],x[n+1+nA:n+1+nA+nB],x[-1])
     grad = f_mu_grad(x[:n],x[n],x[n+1:n+1+nA],x[n+1+nA:n+1+nA+nB],x[-1],mu)
     n_x = np.linalg.solve(hess,-grad)
-    print(np.max(np.abs(n_x)))
+    #print(np.max(np.abs(n_x)))
     return n_x
 
 def fit(x,h,c):
@@ -186,9 +189,14 @@ def check(x):
     c = x[n]
     current_labels = fit(train_data[:, 1:], h, c)
     correct_match_idx = np.where(current_labels == true_labels)[0]
-    print(len(correct_match_idx)/len(train_data), len(np.where(true_labels[correct_match_idx] == 0)[0])/nA,
+    print(len(correct_match_idx)/len(train_data),
+          len(np.where(true_labels[correct_match_idx] == 0)[0])/nA,
           len(np.where(true_labels[correct_match_idx] == 1)[0])/nB)
 
+def delta(x, mu):
+    hess = f_mu_hessian(x[:n],x[n],x[n+1:n+1+nA],x[n+1+nA:n+1+nA+nB],x[-1])
+    step = n_mu(mu,x)
+    return np.sqrt(np.dot(step, np.dot(hess,step)))
 
 nu = 2*(nA+nB+1)
 mu_k = 1
@@ -197,6 +205,13 @@ theta = 1/(16*np.sqrt(nu))
 tau = 0.25
 epsilon = 1e-2
 mu_final = epsilon * (1-tau)/nu
+
+delt = delta(x_k,mu_k)
+while delt>tau:
+    print("delt : ",delt)
+    x_k += n_mu(mu_k,x_k)/(1+delt) # damped
+    delt = delta(x_k,mu_k)
+print("damped done")
 
 while mu_k > mu_final:
     mu_k = mu_k * (1-theta)
