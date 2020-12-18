@@ -1,5 +1,6 @@
 import numpy as np
 import pickle
+import matplotlib.pyplot as plt
 
 lam = 0.5
 
@@ -10,24 +11,30 @@ lam = 0.5
 #train_data = np.loadtxt("data/mnist_train.csv",delimiter=",")
 #pickle.dump(train_data[:int(0.1*len(train_data))],open("train_data.p","wb"))
 
-train_data = pickle.load(open("train_data.p", "rb"))
-train_data=train_data[:4000]
+# train_data = pickle.load(open("train_data.p", "rb"))
+# train_data=train_data[:4000]
+#
+# n = len(train_data[0])-1
+#
+# ind_a = np.where(train_data[:,0]==0)[0][:300]
+# ind_b = np.where(train_data[:,0]!=0)[0][:300]
+# train_data = train_data[np.hstack([ind_b,ind_a])]
+# ind_a = np.where(train_data[:,0]==0)[0][:300]
+# ind_b = np.where(train_data[:,0]!=0)[0][:300]
+# nA = len(ind_a)
+# nB = len(ind_b)
+# print(len(train_data),nA,nB)
+# a = train_data[ind_a,1:]
+# b = train_data[ind_b,1:]
+#
+# true_labels=np.zeros(nA+nB)
+# true_labels[ind_b]=1
 
-n = len(train_data[0])-1
-
-ind_a = np.where(train_data[:,0]==0)[0][:300]
-ind_b = np.where(train_data[:,0]!=0)[0][:300]
-train_data = train_data[np.hstack([ind_b,ind_a])]
-ind_a = np.where(train_data[:,0]==0)[0][:300]
-ind_b = np.where(train_data[:,0]!=0)[0][:300]
-nA = len(ind_a)
-nB = len(ind_b)
-print(len(train_data),nA,nB)
-a = train_data[ind_a,1:]
-b = train_data[ind_b,1:]
-
-true_labels=np.zeros(nA+nB)
-true_labels[ind_b]=1
+a = np.array([[1,2]])
+b = np.array([[2,3],[2,2]])
+nA = 1
+nB = 2
+n = 2
 
 ############
 # Gradient #
@@ -41,7 +48,7 @@ def f_mu_h(h,c,s,t,l):
     sumB = 0
     for i in range(nB):
         sumB += b[i]/(-1+np.dot(h,b[i])+c+t[i])
-    return sumA - sumB + 2*h/(l-np.linalg.norm(h)**2)
+    return sumA - sumB + 2*h/(l**2-np.dot(h,h))
 
 # w.r.t. c
 f_mu_c = lambda h,c,s,t : np.sum(1/(-np.ones(nA)-a@h-c*np.ones(nA)+s)) - np.sum(1/(-np.ones(nB)+b@h+c*np.ones(nB)+t))
@@ -51,14 +58,14 @@ f_mu_s = lambda h,c,s,mu : 1/(nA*mu)*np.ones(nA) - 1/s - 1/(-np.ones(nA)-a@h-c*n
 f_mu_t = lambda h,c,t,mu : 1/(nB*mu)*np.ones(nB) - 1/t - 1/(-np.ones(nB)+b@h+c*np.ones(nB)+t)
 
 # w.r.t. l
-f_mu_l = lambda h,l,mu: lam/mu - 1/(l-np.linalg.norm(h)**2)
+f_mu_l = lambda h,l,mu: lam/mu - 2*l/(l**2-np.dot(h,h))
 
 # thus
 f_mu_grad = lambda h,c,s,t,l,mu : np.hstack([f_mu_h(h,c,s,t,l),
-                                          f_mu_c(h,c,s,t),
-                                          f_mu_s(h,c,s,mu),
-                                          f_mu_t(h,c,t,mu),
-                                          f_mu_l(h,l,mu)])
+                                             f_mu_c(h,c,s,t),
+                                             f_mu_s(h,c,s,mu),
+                                             f_mu_t(h,c,t,mu),
+                                             f_mu_l(h,l,mu)])
 
 ###########
 # Hessian #
@@ -72,8 +79,8 @@ def f_mu_h_h(h,c,s,t,l):
         mat += np.outer(a[i],a[i])/(-1-np.dot(h,a[i])-c+s[i])**2
     for i in range(nB):
         mat += np.outer(b[i],b[i])/(-1+np.dot(h,b[i])+c+t[i])**2
-    mat += np.outer(h,h)*4/(l-np.linalg.norm(h)**2)**2
-    mat += 2/(l-np.linalg.norm(h)**2)*np.eye(n)
+    mat += np.outer(h,h)*4/(l**2-np.dot(h,h))**2
+    mat += 2/(l**2-np.dot(h,h))*np.eye(n)
     return mat
 
 # 1x(n) vector
@@ -100,7 +107,7 @@ def f_mu_t_h(h,c,t):
     return mat
 
 # 1x(n) vector
-f_mu_l_h = lambda h,l : np.reshape(-2*h/(l-np.linalg.norm(h)**2)**2,(1,n))
+f_mu_l_h = lambda h,l : np.reshape(-4*l*h/(l**2-np.dot(h,h))**2,(1,n))
 
 # scalar
 f_mu_c_c = lambda h,c,s,t : [[np.sum(1/(-np.ones(nA)-a@h-c*np.ones(nA)+s)**2) + np.sum(1/(-np.ones(nB)+b@h+c*np.ones(nB)+t)**2)]]
@@ -126,7 +133,7 @@ f_mu_s_s = lambda h,c,s : np.diag(1/s**2 + 1/(-np.ones(nA)-a@h-c*np.ones(nA)+s)*
 f_mu_t_t = lambda h,c,t : np.diag(1/t**2 + 1/(-np.ones(nB)+b@h+c*np.ones(nB)+t)**2)
 
 # scalar
-f_mu_l_l = lambda h,l : [[1/(l-np.linalg.norm(h)**2)**2]]
+f_mu_l_l = lambda h,l : [[(2*l**2 + 2*np.dot(h,h))/(l**2-np.dot(h,h))**2]]
 
 def f_mu_hessian(h,c,s,t,l):
     h_row = np.hstack([f_mu_h_h(h,c,s,t,l),
@@ -171,8 +178,7 @@ def initial_point():
 def n_mu(mu,x):
     hess = f_mu_hessian(x[:n],x[n],x[n+1:n+1+nA],x[n+1+nA:n+1+nA+nB],x[-1])
     grad = f_mu_grad(x[:n],x[n],x[n+1:n+1+nA],x[n+1+nA:n+1+nA+nB],x[-1],mu)
-    n_x = np.linalg.solve(hess,-grad)
-    #print(np.max(np.abs(n_x)))
+    n_x = -np.linalg.solve(hess,grad)
     return n_x
 
 def fit(x,h,c):
@@ -194,34 +200,39 @@ def check(x):
           len(np.where(true_labels[correct_match_idx] == 1)[0])/nB)
 
 def delta(x, mu):
-    hess = f_mu_hessian(x[:n],x[n],x[n+1:n+1+nA],x[n+1+nA:n+1+nA+nB],x[-1])
+    grad = f_mu_grad(x[:n],x[n],x[n+1:n+1+nA],x[n+1+nA:n+1+nA+nB],x[-1],mu)
     step = n_mu(mu,x)
-    return np.sqrt(np.dot(step, np.dot(hess,step)))
+    return np.sqrt(-np.dot(grad,step))
 
-nu = 2*(nA+nB+1)
-mu_k = 1
-x_k = initial_point()
-theta = 1/(16*np.sqrt(nu))
-tau = 0.25
-epsilon = 1e-2
-mu_final = epsilon * (1-tau)/nu
-
-delt = delta(x_k,mu_k)
-while delt>tau:
-    print("delt : ",delt)
-    x_k += n_mu(mu_k,x_k)/(1+delt) # damped
-    delt = delta(x_k,mu_k)
-print("damped done")
-
-while mu_k > mu_final:
-    mu_k = mu_k * (1-theta)
-    x_k += n_mu(mu_k,x_k)
-    check(x_k)
-
-
-
-
-
-
+# nu = 2*(nA+nB+1)
+# mu_k = 1
+# x_k = initial_point()
+# theta = 1/(16*np.sqrt(nu))
+# tau = 0.25
+# epsilon = 1e-2
+# mu_final = epsilon * (1-tau)/nu
+#
+# delt = delta(x_k,mu_k)
+# while delt>tau:
+#     print("delt : ",delt)
+#     x_k += n_mu(mu_k,x_k)/(1+delt) # damped
+#     delt = delta(x_k,mu_k)
+# print("damped done")
+#
+# while mu_k > mu_final:
+#     mu_k = mu_k * (1-theta)
+#     x_k += n_mu(mu_k,x_k)
+#     #check(x_k)
+# print("following path done")
+#
+# plt.plot(a[0,0],a[0,1],'.r')
+# plt.plot(b[0,0],b[0,1],'.g')
+# plt.plot(b[1,0],b[1,1],'.g')
+#
+# x = np.linspace(1,3,100)
+#
+# print(x_k)
+# plt.plot(x,(x_k[0]*x + x_k[2])/(-x_k[1]))
+# plt.show()
 
 
