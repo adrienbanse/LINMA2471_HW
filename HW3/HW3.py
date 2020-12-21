@@ -1,7 +1,9 @@
 import numpy as np
 import pickle
 from keras.datasets import mnist
+import itertools
 
+printed = False
 
 def gradient_f(x_k, mu,lam,a,b):
     nA = len(a)
@@ -101,7 +103,8 @@ def accuracy(h,c,a,b):
     pred_labels_b = predict(b, h, c)
     acc_a = len(np.where(pred_labels_a == 0)[0])
     acc_b = len(np.where(pred_labels_b == 1)[0])
-    print('     Accuracy  : %1.4f (A : %1.4f,B : %1.4f)' %((acc_a+acc_b)/(nA+nB),acc_a/nA,acc_b/nB))
+    print('     Accuracy  : %1.8f (A : %1.8f,B : %1.8f)' %((acc_a+acc_b)/(nA+nB),acc_a/nA,acc_b/nB))
+    return (acc_a+acc_b)/(nA+nB)
 
 def newton(x_k,mu_k,lam,a,b,damped=False):
     hess = hessian_f(x_k,a,b)
@@ -128,46 +131,95 @@ def fit(lam,mu_0,a,b,epsilon,num_theta):
     delt = tau + 1
     k = 1
     while delt > tau:
-        print('--------------- Iteration %3.f (damped in progress) ----------------' % k)
-        x_k, delt = newton(x_k,mu_0,lam,a,b,True) # damped
-        print('     Delta : %3.4f' %delt, '(threshold : %3.4f)' %tau)
-        k+=1
 
+        x_k, delt = newton(x_k,mu_0,lam,a,b,True) # damped
+        if k%100 == 0 :
+            print('--------------- Iteration %3.f (damped in progress) ----------------' % k)
+            print('     Delta : %3.4f' %delt, '(threshold : %3.4f)' %tau)
+            accuracy(x_k[:n], x_k[n], a, b)
+        k+=1
     mu_final = epsilon * (1 - tau) / nu
     mu_k = mu_0
+    k = 1
     while mu_k > mu_final:
-        print('------------------- Iteration %3.f (damped done) -------------------' % k)
-        print('     Mu : %1.9f' %mu_k,'(threshold : %1.9f)' %mu_final)
+        if k % 100 == 0 :
+            print('------------------- Iteration %3.f (damped done) -------------------' % k)
+            print('     Mu : %1.9f' %mu_k,'(threshold : %1.9f)' %mu_final)
+            accuracy(x_k[:n], x_k[n], a, b)
         mu_k *= (1 - theta)
         x_k = newton(x_k, mu_k,lam,a,b)
-        accuracy(x_k[:n],x_k[n],a,b)
+
         k+=1
 
-    return x_k[:n],x_k[n]
+    return x_k[:n],x_k[n],accuracy(x_k[:n], x_k[n], a, b)
 
 if __name__ == '__main__':
     #train_data = pickle.load(open("train_data.p", "rb"))
-
     (train_X, train_y), (test_X, test_y) = mnist.load_data()
+    size = 6000
+    size_class = int(size/2)
+    ind_a = np.where(train_y == 0)[0][:size_class]
+    ind_b = np.where(train_y != 0)[0][:size_class]
+    train_X = np.array(np.reshape(train_X[np.hstack([ind_a, ind_b])],(size,784)),dtype=float)
+    a_train = train_X[:size_class]
+    b_train = train_X[size_class:]
 
+    ind_a_test = np.where(test_y == 0)[0]
+    ind_b_test = np.where(test_y != 0)[0]
+    test_X = np.array(np.reshape(test_X,(len(test_X),784)),dtype=float)
+    a_test = test_X[ind_a_test]
+    b_test = test_X[ind_b_test]
 
-    size = 500
-
-    ind_a = np.where(train_y == 0)[0][:size]
-    ind_b = np.where(train_y != 0)[0][:size]
-
-    train_data = train_X[np.hstack([ind_a, ind_b])]
-
-    train_data = [digit.ravel() for digit in train_data]
-
-    a_train = train_data[:size, 1:]
-    b_train = train_data[size:, 1:]
-
-    lam = 10
     epsilon = 1e-4
-    num_theta = 5
-    label_a, label_b = 0, 1
-    h,c = fit(lam, 1, a_train, b_train, epsilon, num_theta)
-    print('-------------------------- Final Train Results --------------------------')
-    accuracy(h, c, a_train, b_train)
+    num_theta = 1
+    acc_lam = np.zeros(10)
+    for i,lam in enumerate([10]):
+        h,c,acc = fit(lam, 1, a_train, b_train, epsilon, num_theta)
+        print("#####################################################################")
+        print("#####################################################################")
+        print(lam,acc)
+        accuracy(h, c, a_test, b_test)
+        #99,91 lambda=4 num_delta = 1
+        #99,91 lambda=6 num_delta = 1
+        #99,91 lambda=8 num_delta = 5
+        #99,91 lambda=10 num_delta = 5
+        #99,66 lambda=12 num_delta = 5
+        #99,66 lambda=14 num_delta = 5
+        #99,66 lambda=16 num_delta = 5
+        print("#####################################################################")
+        print("#####################################################################")
+        acc_lam[i]=acc
+
+    ### Multiclass classification ###
+    (train_X, train_y), (test_X, test_y) = mnist.load_data()
+    size = 6000
+    train_X = np.array(np.reshape(train_X, (len(train_X), 784)), dtype=float)
+
+    idx_X = [np.where(train_y == x)[0][:int(size/10)] for x in range(10)]
+    classifiers_pairs = [(i,j) for i,j in itertools.combinations(range(10), 2)]
+    classifiers_hyperplanes = np.zeros(45,2)
+
+    test_y_pred = -np.ones(45,len(test_y))
+    for idx in range(45):
+        A,B = classifiers_pairs[idx]
+        a_train = train_X[idx_X[A]]
+        b_train = train_X[idx_X[B]]
+        h, c, acc = fit(lam=10, mu_0=1, a=a_train, b=b_train, epsilon=1e-4, num_theta=1)
+        pred_idx = predict(test_X,h,c) # 0 -> A , 1 -> B
+        test_y_pred[idx] = A * (pred_idx==0) + B * (pred_idx==1)
+
+    pred_y = np.zeros(len(test_y))
+    for i in range(len(test_y)) :
+        pred_y[i] = np.bincount(test_y_pred[:][i]).argmax()
+
+
+
+
+
+
+
+
+
+
+
 
